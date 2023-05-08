@@ -9,9 +9,11 @@ from scipy.stats import t, f
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import PolynomialFeatures
+from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 # Устанавливаем высокое разрешение
-plt.gcf().set_dpi(492)
+plt.gcf().set_dpi(600)
 
 
 def upload_file(request):
@@ -19,6 +21,7 @@ def upload_file(request):
         file = request.FILES['file']
         if file.name.endswith('.csv'):
             df = pd.read_csv(file)
+
             df = df.dropna()
 
             for index, row in df.iterrows():
@@ -37,6 +40,8 @@ def upload_file(request):
                     float(value_str)
                 except ValueError:
                     df = df.drop(index)
+
+            df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize('Europe/Moscow')
 
             # Примеры 1-3
             average_level = df['Value'].mean()
@@ -115,24 +120,27 @@ def upload_file(request):
             ma4_center = moving_average(df, 4, center=True)
 
             plt.figure(figsize=(12, 6))
-            plt.plot(df["Date"], df["Value"], marker='o', label='Исходные данные')
+            # уменьшение размера маркеров
+            plt.rcParams['lines.markersize'] = 0.5
+            plt.plot(df["Date"], df["Value"], marker='o', label='Исходные данные', linestyle='-')
             # отображение по оси x только даты, с шагом 12
             plt.xticks(df["Date"][::12])
-            # уменьшение размера маркеров
-            plt.rcParams['lines.markersize'] = 1
+
             # #уменьшение толщины линий
             # plt.rcParams['lines.linewidth'] = 1
 
-            plt.plot(ma3["Date"], ma3["Average"], marker='o', linestyle='dashed',
+            plt.plot(ma3["Date"], ma3["Average"], marker='o', linestyle='-',
                      label='Скользящая средняя (окно 3)')
-            plt.plot(ma4_no_center["Date"], ma4_no_center["Average"], marker='o', linestyle='dashed',
+            plt.plot(ma4_no_center["Date"], ma4_no_center["Average"], marker='o', linestyle='-',
                      label='Скользящая средняя (окно 4, без центрирования)')
-            plt.plot(ma4_center["Date"], ma4_center["Average"], marker='o', linestyle='dashed',
+            plt.plot(ma4_center["Date"], ma4_center["Average"], marker='o', linestyle='-',
                      label='Скользящая средняя (окно 4, с центрированием)')
             plt.xlabel('Дата')
             plt.ylabel('Значение')
             plt.title('Скользящие средние')
             plt.legend()
+            # сохранение графика
+            plt.savefig('plot_1.png')
             plt.show()
 
             # Пример 7
@@ -167,7 +175,7 @@ def upload_file(request):
             plt.rcParams['lines.markersize'] = 1
             # # уменьшение толщины линий
             # plt.rcParams['lines.linewidth'] = 1
-            plt.plot(df["Date"], df["Value"], marker='o', linestyle='dashed', label='Исходные данные')
+            plt.plot(df["Date"], df["Value"], marker='4', linestyle='-', label='Исходные данные')
             if r2_linear == best_r2:
                 best_model = linear_model
                 best_pred = linear_pred
@@ -188,9 +196,41 @@ def upload_file(request):
             plt.title('Выбранная модель тренда')
             plt.legend()
             plt.grid()
+            # сохранение графика
+            plt.savefig('plot_2.png')
             plt.show()
 
-            return render(request, 'success.html', {'df': df.to_html()})
+            # Разделение данных на обучающую и тестовую выборки
+            train_size = int(len(df) * 0.8)
+            train_set, test_set = df[:train_size], df[train_size:]
+
+            # Обучение модели линейной регрессии
+            regressor = LinearRegression()
+            regressor.fit(train_set[["Date_encoded"]], train_set["Value"])
+
+            # Прогноз на тестовой выборке
+            test_set["Predictions"] = regressor.predict(test_set[["Date_encoded"]])
+
+            # Прогноз на будущий период
+            future_dates = pd.date_range(start=df["Date"].iloc[-1], periods=12, freq="M")
+            future_values = regressor.predict(pd.DataFrame({"Date_encoded": range(len(df) + 1, len(df) + 13)}))
+            future_df = pd.DataFrame({"Date": future_dates, "Value": future_values})
+
+            # Построение графика
+            plt.figure(figsize=(12, 6))
+            plt.plot(df["Date"], df["Value"], color="blue", label="Исходные данные")
+            plt.plot(test_set["Date"], test_set["Predictions"], color="red", label="Прогноз на тестовой выборке")
+            plt.plot(future_df["Date"], future_df["Value"], color="green", label="Прогноз на будущий период")
+            plt.xlabel("Дата")
+            plt.ylabel("Значение")
+            plt.title("Прогнозирование временного ряда")
+            plt.legend()
+            plt.savefig('plot_3.png')
+            plt.show()
+
+
+
+            return render(request, 'success.html')
         else:
             return render(request, 'index.html')
     else:
