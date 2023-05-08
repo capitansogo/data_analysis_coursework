@@ -10,6 +10,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import PolynomialFeatures
 
+# Устанавливаем высокое разрешение
+plt.gcf().set_dpi(492)
+
 
 def upload_file(request):
     if request.method == 'POST':
@@ -35,9 +38,6 @@ def upload_file(request):
                 except ValueError:
                     df = df.drop(index)
 
-            # добавление столбцов с номером года и месяцем
-            df['Year'] = df['Date'].dt.year
-            df['Month'] = df['Date'].dt.month
             # Примеры 1-3
             average_level = df['Value'].mean()
             print("Средний уровень ряда:", average_level)
@@ -116,6 +116,13 @@ def upload_file(request):
 
             plt.figure(figsize=(12, 6))
             plt.plot(df["Date"], df["Value"], marker='o', label='Исходные данные')
+            # отображение по оси x только даты, с шагом 12
+            plt.xticks(df["Date"][::12])
+            # уменьшение размера маркеров
+            plt.rcParams['lines.markersize'] = 1
+            # #уменьшение толщины линий
+            # plt.rcParams['lines.linewidth'] = 1
+
             plt.plot(ma3["Date"], ma3["Average"], marker='o', linestyle='dashed',
                      label='Скользящая средняя (окно 3)')
             plt.plot(ma4_no_center["Date"], ma4_no_center["Average"], marker='o', linestyle='dashed',
@@ -155,23 +162,27 @@ def upload_file(request):
             best_pred = None
             best_r2 = max(r2_linear, r2_poly, r2_exp)
             plt.figure(figsize=(10, 5))
+
+            # уменьшение размера маркеров
+            plt.rcParams['lines.markersize'] = 1
+            # # уменьшение толщины линий
+            # plt.rcParams['lines.linewidth'] = 1
             plt.plot(df["Date"], df["Value"], marker='o', linestyle='dashed', label='Исходные данные')
             if r2_linear == best_r2:
                 best_model = linear_model
                 best_pred = linear_pred
+                plt.xticks(df["Date"][::12])
                 plt.plot(df["Date"], linear_pred, label='Линейная регрессия', linestyle='dotted', color='r')
             elif r2_poly == best_r2:
                 best_model = poly_model
                 best_pred = poly_pred
+                plt.xticks(df["Date"][::12])
                 plt.plot(df["Date"], poly_pred, label='Квадратичная регрессия', linestyle='dotted', color='r')
             else:
                 best_model = exp_model
                 best_pred = exp_pred
+                plt.xticks(df["Date"][::12])
                 plt.plot(df["Date"], exp_pred, label='Экспоненциальная регрессия', linestyle='dotted', color='r')
-            # Задание подписей оси x
-            xticks_dates = pd.date_range(start='1/1/2000', end='12/31/2022', freq='5Y')
-            xticks_dates = xticks_dates.to_pydatetime()
-            plt.xticks(xticks_dates, [date.strftime("%Y-%m-%d") for date in xticks_dates], rotation=90)
             plt.xlabel('Дата')
             plt.ylabel('Значение')
             plt.title('Выбранная модель тренда')
@@ -184,6 +195,7 @@ def upload_file(request):
             return render(request, 'index.html')
     else:
         return render(request, 'upload.html')
+
 
 def index(request):
     return render(request, 'index.html')
