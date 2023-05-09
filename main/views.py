@@ -53,8 +53,8 @@ def upload_file(request):
 
             df['Growth_1'] = df['Value'].pct_change() + 1
             growth_1 = df['Growth_1'].iloc[1:].prod() ** (1 / (len(df) - 1))
-            print("Среднегодовой темп роста:", round(growth_1 * 100, 2), "%")
-            print("Средний темп прироста:", round(growth_1 * 100 - 100, 2), "%")
+            growth_srednegod = round(growth_1 * 100, 2)
+            growth_prirost = round(growth_1 * 100 - 100, 2)
 
             # Пример 4
             df['Month'] = pd.to_datetime(df['Date']).dt.month
@@ -90,9 +90,9 @@ def upload_file(request):
             print("Табличное значение t-критерия:", t_tabl)
             # проверка гипотезы
             if t_stat < t_tabl:
-                print("Гипотеза о стационарности ряда принимается")
+                gipoteza = "Гипотеза о стационарности ряда принимается"
             else:
-                print("Гипотеза о стационарности ряда отвергается")
+                gipoteza = "Гипотеза о стационарности ряда отвергается"
 
             # вывод датафрейма с расчетами
             print(df)
@@ -228,9 +228,19 @@ def upload_file(request):
             plt.savefig('plot_3.png')
             plt.show()
 
+            return render(request, 'success.html', {'average_level': average_level, 'growth': growth,
+                                                    'growth_srednegod': growth_srednegod,
+                                                    'growth_prirost': growth_prirost,
+                                                    ' y1': y1, 'y2': y2,
+                                                    'sigma1': sigma1, 'sigma2': sigma2,
+                                                    'F': F, 'F_tabl': F_tabl, 't_stat': t_stat, 't_tabl': t_tabl,
+                                                    'gipoteza': gipoteza})
 
 
-            return render(request, 'success.html')
+
+
+
+
         else:
             return render(request, 'index.html')
     else:
