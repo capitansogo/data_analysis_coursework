@@ -9,58 +9,435 @@
             integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
             crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.16.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.1.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.1.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-trendline"></script>
+    <script src="html2pdf.bundle.js"></script>
+    <script src=https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.js></script>
 </head>
-<body>
-<!-- выравнивание заголовков таблицы по центру -->
 <style>
-    .table thead th {
-        text-align: center;
+
+    .text {
+        font-size: 20px;
     }
 </style>
+<body>
+<nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+        <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+            <div class="navbar-nav">
+                <a class="nav-link" aria-current="page" href="{% url 'index' %}">Home</a>
+            </div>
+        </div>
+    </div>
+</nav>
+<div class="container" style="margin-top: 3rem" id="maim">
+    <div class="row ">
+        <div class="col-4">
+            <p class="text">Средний уровень ряда: <b>{{ average_level }}</b></p>
+            <p class="text">Цепные приросты: <b>{{ growth }}</b></p>
+            <p class="text">Средний уровень ряда: <b>{{ average_level }}</b></p>
+            <p class="text">Среднее значение за полугодия: <b>{{ y1 }}</b>, <b>{{ y2 }}</b></p>
+            <p class="text">Среднее значение дисперсии за полугодия: <b>{{ sigma1 }}</b>, <b>{{ sigma2 }}</b></p>
+            <p class="text">F-критерий Фишера: <b>{{ F }}</b></p>
+            <p class="text">Табличное значение F-критерия: <b>{{ F_tabl }}</b></p>
+            <p class="text">t-критерий Стьюдента: <b>{{ t_stat }}</b></p>
+            <p class="text">Табличное значение t-критерия: <b>{{ t_tabl }}</b></p>
+            <p class="text">Гипотеза о стационарности ряда : <b>{{ gipoteza }}</b></p>
 
-<div class="row justify-content-center">
-    <div class="col-5">
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ forecast_table|safe }}
-
+        </div>
+        <div class="col-8 cvet">
+            <canvas id="canvasId"></canvas>
+            <canvas id="canvasId2"></canvas>
+            <canvas id="canvasId3"></canvas>
+            <canvas id="canvasId4"></canvas>
+            <canvas id="canvasId5"></canvas>
+        </div>
     </div>
-    <div>
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ decompos|safe }}
+    <div class="row" style="overflow:auto;">
+        {{ df|safe }}
     </div>
-    <div>
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ check|safe }}
-    </div>
-    <div>
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ simple|safe }}
-    </div>
-    <div>
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ double|safe }}
-    </div>
-    <div>
-        <h1 class="text-center">Содержимое файла</h1>
-        {{ holt|safe }}
-    </div>
+    <button id="download-button" class="btn btn-primary">Скачать данные</button>
+    <button id="download-button" class="btn btn-primary" onclick="generatePDF()">Сохранить в PDF</button>
 
 
-    {#    <div class="col-5">#}
-    {#        <h1 class="text-center"><br></h1>#}
-    {#        <table class="table table-striped">#}
-    {#            <thead>#}
-    {#            <tr>#}
-    {#                <th scope="col">Параметр</th>#}
-    {#                <th scope="col">Значение</th>#}
-    {#            </tr>#}
-    {#            </thead>#}
-    {#            <tbody>#}
-    {#            </tbody>#}
-    {#        </table>#}
-    {#    </div>#}
+    <script>
+        document.getElementById('download-button').addEventListener('click', function () {
+            window.location.href = '/download/';
+        });
+
+        // Получение контекста для рисования
+        let canvas = window.document.getElementById('canvasId');
+        let canvas2 = window.document.getElementById('canvasId2');
+        let canvas3 = window.document.getElementById('canvasId3');
+        let canvas4 = window.document.getElementById('canvasId4');
+        let canvas5 = window.document.getElementById('canvasId5');
+        let context = canvas.getContext('2d');
+        let context2 = canvas2.getContext('2d');
+        let context3 = canvas3.getContext('2d');
+        let context4 = canvas4.getContext('2d');
+        let context5 = canvas5.getContext('2d');
+        // Функции
+        const createLineChart_4param = (context, xData0, yData0, xData1, yData1, xData2, yData2, xData3, yData3) => {
+            let xData = Array.from(new Set([...xData0, ...xData1, ...xData2, ...xData3]));
+            let data = {
+                labels: xData,
+                datasets: [
+                    {
+                        label: 'Исходный ряд',
+                        data: yData0,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        borderColor: '#ff0000',
+                        backgroundColor: '#ff7070',
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Скользящая средняя (окно 3)',
+                        data: yData1,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        backgroundColor: '#ffc671',
+                        borderColor: '#ff8000'
+                    },
+                    {
+                        label: 'Скользящая средняя (окно 4, без центрирования)',
+                        data: yData2,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        backgroundColor: '#c6ff71',
+                        borderColor: '#00ff12',
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Скользящая средняя (окно 4, с центрированием)',
+                        data: yData3,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        borderColor: '#0022ff',
+                        backgroundColor: '#71c6ff',
+                        pointRadius: 0
+                    }]
+            }
+            let options = {
+                plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true,  // Включение зума при использовании колеса мыши
+                            },
+                            pinch: {
+                                enabled: true,  // Включение зума при использовании мультитач-жестов
+                            },
+                            mode: 'xy',  // Включение зума по осям X и Y
+                        },
+                        pan: {
+                            enabled: true,  // Включение панорамирования
+                            mode: 'xy',  // Включение панорамирования по осям X и Y
+                        },
+                        limits: {
+                            x: {  // Ограничение по оси X
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                            y: {  // Ограничение по оси Y
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                        },
+                    },
+
+
+                },
+
+
+                title: {
+                    display: true,
+                    text: 'Скользящие средние',
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',  // Использование временной оси
+                        time: {
+                            unit: 'day'  // Установка единицы времени
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Дата'
+                        }
+                    }],
+                    yAxes: [{
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Значение'
+                        }
+                    }]
+                }
+            }
+
+            let config = {
+                type: 'line',
+                data: data,
+                options: options
+            }
+
+            return new Chart(context, config);
+
+        }
+        const createLineChart_3param = (context, xData0, yData0, xData1, yData1, xData2, yData2, title1, title2) => {
+            let data = {
+                datasets: [
+                    {
+                        label: 'Исходный ряд',
+                        data: xData0.map((x, i) => ({x: x, y: yData0[i]})),
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        borderColor: '#ff0000',
+                        backgroundColor: '#ff7070',
+                        pointRadius: 0
+                    },
+                    {
+                        label: title1,
+                        data: xData1.map((x, i) => ({x: x, y: yData1[i]})),
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        backgroundColor: '#ffc671',
+                        borderColor: '#ff8000'
+                    },
+                    {
+                        label: title2,
+                        data: xData2.map((x, i) => ({x: x, y: yData2[i]})),
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        backgroundColor: '#c6ff71',
+                        borderColor: '#00ff12',
+                        pointRadius: 0
+                    }]
+            }
+            let options = {
+                plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true,  // Включение зума при использовании колеса мыши
+                            },
+                            pinch: {
+                                enabled: true,  // Включение зума при использовании мультитач-жестов
+                            },
+                            mode: 'xy',  // Включение зума по осям X и Y
+                        },
+                        pan: {
+                            enabled: true,  // Включение панорамирования
+                            mode: 'xy',  // Включение панорамирования по осям X и Y
+                        },
+                        limits: {
+                            x: {  // Ограничение по оси X
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                            y: {  // Ограничение по оси Y
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                        },
+                    },
+                },
+
+
+                title: {
+                    display: true,
+                    text: 'Скользящие средние'
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',  // Использование временной оси
+                        time: {
+                            unit: 'day'  // Установка единицы времени
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Дата'
+                        }
+                    }],
+                    yAxes: [{
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Значение'
+                        }
+                    }]
+                }
+            }
+
+            let config = {
+                type: 'line',
+                data: data,
+                options: options
+            }
+
+            return new Chart(context, config);
+
+        }
+        const createLineChart_2param = (context, xData0, yData0, xData1, yData1, title) => {
+            let xData = Array.from(new Set([...xData0, ...xData1]));
+            let data = {
+                labels: xData,
+                datasets: [
+                    {
+                        label: 'Исходный ряд',
+                        data: yData0,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        borderColor: '#ff0000',
+                        backgroundColor: '#ff7070',
+                        pointRadius: 0
+                    },
+                    {
+                        label: title,
+                        data: yData1,
+                        pointStyle: 'none',
+                        fill: false,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        backgroundColor: '#c6ff71',
+                        borderColor: '#00ff12',
+                    },
+                ]
+            }
+            let options = {
+                plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: true,  // Включение зума при использовании колеса мыши
+                            },
+                            pinch: {
+                                enabled: true,  // Включение зума при использовании мультитач-жестов
+                            },
+                            mode: 'xy',  // Включение зума по осям X и Y
+                        },
+                        pan: {
+                            enabled: true,  // Включение панорамирования
+                            mode: 'xy',  // Включение панорамирования по осям X и Y
+                        },
+                        limits: {
+                            x: {  // Ограничение по оси X
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                            y: {  // Ограничение по оси Y
+                                min: 'original',  // Минимальное значение - первоначальное
+                                max: 'original'  // Максимальное значение - первоначальное
+                            },
+                        },
+                    },
+                },
+
+
+                title: {
+                    display: true,
+                    text: 'Скользящие средние'
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',  // Использование временной оси
+                        time: {
+                            unit: 'day'  // Установка единицы времени
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Дата'
+                        }
+                    }],
+                    yAxes: [{
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Значение'
+                        }
+                    }]
+                }
+            }
+
+            let config = {
+                type: 'line',
+                data: data,
+                options: options
+            }
+
+            return new Chart(context, config);
+
+        }
+
+        // Использование данных из Django
+        let ma3_data = JSON.parse('{{ ma3_data|escapejs }}');
+        let ma4_no_center_data = JSON.parse('{{ ma4_no_center_data|escapejs }}');
+        let ma4_center_data = JSON.parse('{{ ma4_center_data|escapejs }}');
+        let date = JSON.parse('{{ data|escapejs }}');
+        let exponential_trend = JSON.parse('{{ exponential_trend|escapejs }}');
+        let linear_trend = JSON.parse('{{ linear_trend|escapejs }}');
+        let hyperbolic_trend = JSON.parse('{{ hyperbolic_trend|escapejs }}');
+        let test_set_data = JSON.parse('{{ test_set_data|escapejs }}');
+        let future_df_data = JSON.parse('{{ future_df_data|escapejs }}');
+
+        let xData0 = date.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yData0 = date.map(row => row.Value);
+
+        let xData1 = ma3_data.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yData1 = ma3_data.map(row => row.Average);
+
+        let xData2 = ma4_no_center_data.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yData2 = ma4_no_center_data.map(row => row.Average);
+
+        let xData3 = ma4_center_data.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yData3 = ma4_center_data.map(row => row.Average);
+
+        let xExponential_trend = exponential_trend.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yExponential_trend = exponential_trend.map(row => row.exponential_trend);
+
+        let xLinear_trend = linear_trend.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yLinear_trend = linear_trend.map(row => row.linear_trend);
+
+        let xHyperbolic_trend = hyperbolic_trend.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yHyperbolic_trend = hyperbolic_trend.map(row => row.hyperbolic_trend);
+
+        let xTest_set_data = test_set_data.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yTest_set_data = test_set_data.map(row => row.Predictions);
+
+        let xFuture_df_data = future_df_data.map(row => new Date(row.Date).toISOString().slice(0, 10));
+        let yFuture_df_data = future_df_data.map(row => row.Value);
+
+
+        createLineChart_4param(context, xData0, yData0, xData1, yData1, xData2, yData2, xData3, yData3);
+        createLineChart_2param(context2, xData0, yData0, xLinear_trend, yLinear_trend, 'Линейный тренд');
+        createLineChart_2param(context3, xData0, yData0, xExponential_trend, yExponential_trend, 'Экспоненциальный тренд');
+        createLineChart_2param(context4, xData0, yData0, xHyperbolic_trend, yHyperbolic_trend, 'Гиперболический тренд');
+        createLineChart_3param(context5, xData0, yData0, xTest_set_data, yTest_set_data, xFuture_df_data, yFuture_df_data, 'Тестовые данные', 'Прогноз');
+
+
+        function generatePDF() {
+            const element = document.getElementById('maim');
+            html2pdf()
+                .from(element)
+                .save();
+        }
+
+    </script>
 </div>
-<img src="data:image/png;base64,{{ arima_image }}" alt="ARIMA Forecast">
 
 </body>
 </html>

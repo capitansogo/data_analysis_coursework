@@ -1,22 +1,19 @@
 import datetime
-import io
-import math
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from django.shortcuts import render
 from scipy.stats import t, f
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
-from sklearn.preprocessing import PolynomialFeatures
-from statsmodels.tsa.arima_model import ARIMA
-from statsmodels.tsa.statespace.sarimax import SARIMAX
+import pandas as pd
+from django.http import HttpResponse
 
 # Устанавливаем высокое разрешение
 plt.gcf().set_dpi(600)
 
+df = pd.DataFrame()
 
-def upload_file(request):
+
+def index(request):
     if request.method == 'POST':
         file = request.FILES['file']
         if file.name.endswith('.csv'):
@@ -43,6 +40,9 @@ def upload_file(request):
 
             df['Date'] = pd.to_datetime(df['Date']).dt.tz_localize('Europe/Moscow')
 
+            data = df.copy().to_json(orient='records')
+            print(data)
+
             # Примеры 1-3
             average_level = df['Value'].mean()
             print("Средний уровень ряда:", average_level)
@@ -54,7 +54,6 @@ def upload_file(request):
             df['Growth_1'] = df['Value'].pct_change() + 1
             growth_1 = df['Growth_1'].iloc[1:].prod() ** (1 / (len(df) - 1))
             growth_srednegod = round(growth_1 * 100, 2)
-            growth_prirost = round(growth_1 * 100 - 100, 2)
 
             # Пример 4
             df['Month'] = pd.to_datetime(df['Date']).dt.month
@@ -63,15 +62,12 @@ def upload_file(request):
 
             y1 = df_first_half['Value'].mean()
             y2 = df_second_half['Value'].mean()
-            print("Средняя прибыль за полугодие:", y1, y2)
 
             # Пример 5
             sigma1 = df_first_half['Value'].var(ddof=1)
             sigma2 = df_second_half['Value'].var(ddof=1)
-            print("Дисперсия за полугодие:", sigma1, sigma2)
 
             F = sigma1 / sigma2
-            print("F-критерий Фишера:", F)
 
             alfa = 0.05
             n1 = len(df_first_half)
@@ -79,23 +75,17 @@ def upload_file(request):
             v1 = n1 - 1
             v2 = n2 - 1
             F_tabl = f.ppf(1 - alfa, v1, v2)
-            print("Табличное значение F-критерия:", F_tabl)
 
             SE = np.sqrt(sigma1 / n1 + sigma2 / n2)
             t_stat = abs(y1 - y2) / SE
-            print("t-критерий Стьюдента:", t_stat)
 
             df_t = n1 + n2 - 2
             t_tabl = t.ppf(1 - alfa / 2, df_t)
-            print("Табличное значение t-критерия:", t_tabl)
             # проверка гипотезы
             if t_stat < t_tabl:
-                gipoteza = "Гипотеза о стационарности ряда принимается"
+                gipoteza = "принимается"
             else:
-                gipoteza = "Гипотеза о стационарности ряда отвергается"
-
-            # вывод датафрейма с расчетами
-            print(df)
+                gipoteza = "отвергается"
 
             # Пример 6
             def moving_average(data, window_size, center=False):
@@ -126,79 +116,12 @@ def upload_file(request):
             # отображение по оси x только даты, с шагом 12
             plt.xticks(df["Date"][::12])
 
-            # #уменьшение толщины линий
-            # plt.rcParams['lines.linewidth'] = 1
-
-            plt.plot(ma3["Date"], ma3["Average"], marker='o', linestyle='-',
-                     label='Скользящая средняя (окно 3)')
-            plt.plot(ma4_no_center["Date"], ma4_no_center["Average"], marker='o', linestyle='-',
-                     label='Скользящая средняя (окно 4, без центрирования)')
-            plt.plot(ma4_center["Date"], ma4_center["Average"], marker='o', linestyle='-',
-                     label='Скользящая средняя (окно 4, с центрированием)')
-            plt.xlabel('Дата')
-            plt.ylabel('Значение')
-            plt.title('Скользящие средние')
-            plt.legend()
-            # сохранение графика
-            plt.savefig('plot_1.png')
-            plt.show()
+            ma3_data = ma3.to_json(orient='records')
+            ma4_no_center_data = ma4_no_center.to_json(orient='records')
+            ma4_center_data = ma4_center.to_json(orient='records')
 
             # Пример 7
             df["Date_encoded"] = range(1, len(df) + 1)
-            linear_model = LinearRegression()
-            linear_model.fit(df[["Date_encoded"]], df["Value"])
-            linear_pred = linear_model.predict(df[["Date_encoded"]])
-            r2_linear = r2_score(df["Value"], linear_pred)
-
-            poly_features = PolynomialFeatures(degree=2)
-            X_poly = poly_features.fit_transform(df[["Date_encoded"]])
-            poly_model = LinearRegression()
-            poly_model.fit(X_poly, df["Value"])
-            poly_pred = poly_model.predict(X_poly)
-            r2_poly = r2_score(df["Value"], poly_pred)
-
-            exp_model = LinearRegression()
-            exp_model.fit(df[["Date_encoded"]], np.log(df["Value"]))
-            exp_pred = np.exp(exp_model.predict(df[["Date_encoded"]]))
-            r2_exp = r2_score(df["Value"], exp_pred)
-
-            print(f"R² для линейной регрессии: {r2_linear}")
-            print(f"R² для квадратичной регрессии: {r2_poly}")
-            print(f"R² для экспоненциальной регрессии: {r2_exp}")
-
-            best_model = None
-            best_pred = None
-            best_r2 = max(r2_linear, r2_poly, r2_exp)
-            plt.figure(figsize=(10, 5))
-
-            # уменьшение размера маркеров
-            plt.rcParams['lines.markersize'] = 1
-            # # уменьшение толщины линий
-            # plt.rcParams['lines.linewidth'] = 1
-            plt.plot(df["Date"], df["Value"], marker='4', linestyle='-', label='Исходные данные')
-            if r2_linear == best_r2:
-                best_model = linear_model
-                best_pred = linear_pred
-                plt.xticks(df["Date"][::12])
-                plt.plot(df["Date"], linear_pred, label='Линейная регрессия', linestyle='dotted', color='r')
-            elif r2_poly == best_r2:
-                best_model = poly_model
-                best_pred = poly_pred
-                plt.xticks(df["Date"][::12])
-                plt.plot(df["Date"], poly_pred, label='Квадратичная регрессия', linestyle='dotted', color='r')
-            else:
-                best_model = exp_model
-                best_pred = exp_pred
-                plt.xticks(df["Date"][::12])
-                plt.plot(df["Date"], exp_pred, label='Экспоненциальная регрессия', linestyle='dotted', color='r')
-            plt.xlabel('Дата')
-            plt.ylabel('Значение')
-            plt.title('Выбранная модель тренда')
-            plt.legend()
-            plt.grid()
-            # сохранение графика
-            plt.savefig('plot_2.png')
-            plt.show()
 
             # Разделение данных на обучающую и тестовую выборки
             train_size = int(len(df) * 0.8)
@@ -216,36 +139,138 @@ def upload_file(request):
             future_values = regressor.predict(pd.DataFrame({"Date_encoded": range(len(df) + 1, len(df) + 13)}))
             future_df = pd.DataFrame({"Date": future_dates, "Value": future_values})
 
-            # Построение графика
-            plt.figure(figsize=(12, 6))
-            plt.plot(df["Date"], df["Value"], color="blue", label="Исходные данные")
-            plt.plot(test_set["Date"], test_set["Predictions"], color="red", label="Прогноз на тестовой выборке")
-            plt.plot(future_df["Date"], future_df["Value"], color="green", label="Прогноз на будущий период")
-            plt.xlabel("Дата")
-            plt.ylabel("Значение")
-            plt.title("Прогнозирование временного ряда")
-            plt.legend()
-            plt.savefig('plot_3.png')
-            plt.show()
+            test_set_data = test_set[["Date", "Predictions"]].copy().to_json(orient='records')
+            future_df_data = future_df[["Date", "Value"]].copy().to_json(orient='records')
 
-            return render(request, 'success.html', {'average_level': average_level, 'growth': growth,
-                                                    'growth_srednegod': growth_srednegod,
-                                                    'growth_prirost': growth_prirost,
-                                                    ' y1': y1, 'y2': y2,
-                                                    'sigma1': sigma1, 'sigma2': sigma2,
-                                                    'F': F, 'F_tabl': F_tabl, 't_stat': t_stat, 't_tabl': t_tabl,
-                                                    'gipoteza': gipoteza})
+            df['Value'] = df['Value'].astype(float)
 
+            # создание датасета для построения графика с полями date и value из df
+            df_copy = df[['Date', 'Value']].copy()
 
+            chart_data = df_copy.to_json(orient='records')
 
+            # 1. Абсолютный прирост (цепной)
+            df['chain_abs_growth'] = df['Value'].diff()
 
+            # 2. Абсолютный прирост (базисный)
+            df['base_abs_growth'] = df['Value'] - df['Value'].iloc[0]
 
+            # 3. Темп роста (цепной)
+            df['chain_growth_rate'] = df['Value'] / df['Value'].shift(1)
+
+            # 4. Темп роста (базисный)
+            df['base_growth_rate'] = df['Value'] / df['Value'].iloc[0]
+
+            # 5. Темп прироста (цепной)
+            df['chain_growth_tempo'] = df['chain_growth_rate'].diff()
+
+            # 6. Темп прироста (базисный)
+            df['base_growth_tempo'] = df['base_growth_rate'] - df['base_growth_rate'].iloc[0]
+
+            # 7. Абсолютное значение 1% прироста
+            df['abs_value_of_1_percent_growth'] = df['Value'] * 0.01
+
+            # 8. Относительное ускорение темпов роста
+            df['relative_growth_acceleration'] = df['chain_growth_rate'].pct_change()
+
+            # 9. Коэффициент опережения
+            df['lead_ratio'] = df['chain_abs_growth'] / df['base_abs_growth']
+
+            # Исключаем первую строку, так как не можем вычислить прирост для первого значения
+            df = df[1:]
+
+            # Создаем модель
+            model = LinearRegression()
+
+            # Формируем X и y
+            X = np.array(range(len(df))).reshape(-1, 1)
+            y = df['Value'].values
+
+            # Обучаем модель
+            model.fit(X, y)
+
+            # Предсказываем тренд
+            df['linear_trend'] = model.predict(X)
+
+            y_log = np.log1p(y)
+
+            # Обучаем модель
+            model.fit(X, y_log)
+
+            # Предсказываем тренд и возвращаем его в исходную шкалу
+            df['exponential_trend'] = np.expm1(model.predict(X))
+
+            # Преобразуем данные с помощью обратного числа
+            y_inverse = 1 / y
+
+            # Обучаем модель
+            model.fit(X, y_inverse)
+
+            # Предсказываем тренд и возвращаем его в исходную шкалу
+            df['hyperbolic_trend'] = 1 / model.predict(X)
+
+            hyperbolic_trend = df[['Date', 'hyperbolic_trend']].copy()
+            hyperbolic_trend = hyperbolic_trend.to_json(orient='records')
+            exponential_trend = df[['Date', 'exponential_trend']].copy()
+            exponential_trend = exponential_trend.to_json(orient='records')
+            linear_trend = df[['Date', 'linear_trend']].copy()
+            linear_trend = linear_trend.to_json(orient='records')
+
+            # Отрисовываем исходные данные
+            plt.figure(figsize=(12, 8))
+            plt.plot(df['Value'], label='Original data')
+
+            df.drop(['Growth', 'Growth_1', 'Month', 'Date_encoded'], axis=1, inplace=True)
+
+            df = df.rename(
+                columns={'Date': 'Дата', 'Value': 'Значение', 'chain_abs_growth': 'Абсолютный прирост (цепной)',
+                         'base_abs_growth': 'Абсолютный прирост (базисный)', 'chain_growth_rate': 'Темп роста (цепной)',
+                         'base_growth_rate': 'Темп роста (базисный)', 'chain_growth_tempo': 'Темп прироста (цепной)',
+                         'base_growth_tempo': 'Темп прироста (базисный)',
+                         'abs_value_of_1_percent_growth': 'Абсолютное значение 1% прироста',
+                         'relative_growth_acceleration': 'Относительное ускорение темпов роста',
+                         'lead_ratio': 'Коэффициент опережения', 'linear_trend': 'Линейный тренд',
+                         'exponential_trend': 'Показательный тренд', 'hyperbolic_trend': 'Гиперболический тренд'})
+
+            request.session['df'] = df.to_json()
+
+            df = df.to_html(
+                classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
+
+            return render(request, 'success.html',
+                          {'average_level': round(average_level, 2), 'growth': round(growth, 2),
+                           'growth_srednegod': round(growth_srednegod, 2),
+                           'y1': round(y1, 2), 'y2': round(y2, 2),
+                           'sigma1': round(sigma1, 2), 'sigma2': round(sigma2, 2),
+                           'F': round(F, 2), 'F_tabl': round(F_tabl, 2), 't_stat': round(t_stat, 2),
+                           't_tabl': round(t_tabl, 2),
+                           'gipoteza': gipoteza,
+                           'df': df,
+                           'chart_data': chart_data,
+                           'ma3_data': ma3_data,
+                           'ma4_no_center_data': ma4_no_center_data,
+                           'ma4_center_data': ma4_center_data,
+                           'data': data,
+                           'hyperbolic_trend': hyperbolic_trend,
+                           'exponential_trend': exponential_trend,
+                           'linear_trend': linear_trend,
+                           'test_set_data': test_set_data,
+                           'future_df_data': future_df_data,
+
+                           })
 
         else:
-            return render(request, 'index.html')
+            return render(request, 'upload.html')
     else:
         return render(request, 'upload.html')
 
 
-def index(request):
-    return render(request, 'index.html')
+def download_df(request):
+    # Извлекаем DataFrame из сессии
+    df = pd.read_json(request.session['df'])
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="data.csv"'
+    df.to_csv(path_or_buf=response, sep=',', float_format='%.2f', index=False, encoding='utf-8')
+
+    return response
