@@ -41,22 +41,38 @@
     <div class="row ">
         <div class="col-4">
             <p class="text">Средний уровень ряда: <b>{{ average_level }}</b></p>
-            <p class="text">Цепные приросты: <b>{{ growth }}</b></p>
-            <p class="text">Средний уровень ряда: <b>{{ average_level }}</b></p>
             <p class="text">Среднее значение за полугодия: <b>{{ y1 }}</b>, <b>{{ y2 }}</b></p>
             <p class="text">Среднее значение дисперсии за полугодия: <b>{{ sigma1 }}</b>, <b>{{ sigma2 }}</b></p>
             <p class="text">F-критерий Фишера: <b>{{ F }}</b></p>
             <p class="text">Табличное значение F-критерия: <b>{{ F_tabl }}</b></p>
             <p class="text">t-критерий Стьюдента: <b>{{ t_stat }}</b></p>
             <p class="text">Табличное значение t-критерия: <b>{{ t_tabl }}</b></p>
-            <p class="text">Гипотеза о стационарности ряда : <b>{{ gipoteza }}</b></p>
+            <p class="text" style="color: red">Гипотеза о стационарности ряда : <b>{{ gipoteza }}</b></p>
 
         </div>
         <div class="col-8 cvet">
             <canvas id="canvasId"></canvas>
+
+            <div id="block1" style="display: none;">
+                {{ ma3|safe }}
+
+            </div>
+            <button onclick="toggleBlock('block1')" class="btn btn-outline-primary">Показать\скрыть данные</button>
             <canvas id="canvasId2"></canvas>
+            <div id="block2" style="display: none;">
+                {{ linear_trend_data|safe }}
+            </div>
+            <button onclick="toggleBlock('block2')" class="btn btn-outline-primary">Показать\скрыть данные</button>
             <canvas id="canvasId3"></canvas>
+            <div id="block3" style="display: none;">
+                {{ exponential_trend_data|safe }}
+            </div>
+            <button onclick="toggleBlock('block3')" class="btn btn-outline-primary">Показать\скрыть данные</button>
             <canvas id="canvasId4"></canvas>
+            <div id="block4" style="display: none;">
+                {{ hyperbolic_trend_data|safe }}
+            </div>
+            <button onclick="toggleBlock('block4')" class="btn btn-outline-primary">Показать\скрыть данные</button>
             <canvas id="canvasId5"></canvas>
         </div>
     </div>
@@ -68,6 +84,17 @@
 
 
     <script>
+
+        function toggleBlock(blockId) {
+            var block = document.getElementById(blockId);
+            if (block.style.display === "none") {
+                block.style.display = "block";
+            } else {
+                block.style.display = "none";
+            }
+        }
+
+
         document.getElementById('download-button').addEventListener('click', function () {
             window.location.href = '/download/';
         });

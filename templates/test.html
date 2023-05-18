@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        function toggleBlock(blockId) {
+            var block = document.getElementById(blockId);
+            if (block.style.display === "none") {
+                block.style.display = "block";
+            } else {
+                block.style.display = "none";
+            }
+        }
+
+    </script>
+</head>
+<body>
+
+<button onclick="toggleBlock('block1')">Кнопка 1</button>
+<div id="block1" style="display: none;">Блок 1</div>
+
+<button onclick="toggleBlock('block2')">Кнопка 2</button>
+<div id="block2" style="display: none;">Блок 2</div>
+
+<button onclick="toggleBlock('block3')">Кнопка 3</button>
+<div id="block3" style="display: none;">Блок 3</div>
+
+
+</body>
+</html>

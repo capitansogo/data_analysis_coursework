@@ -5,6 +5,7 @@ from . import views
 from django.urls import path, include
 
 urlpatterns = [
-                  path('', views.index, name='index'),
-                  path('download/', views.download_df, name='download_df'),
-              ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path('', views.index, name='index'),
+    path('download/', views.download_df, name='download_df'),
+    path('test/', views.test),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

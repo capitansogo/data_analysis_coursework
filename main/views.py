@@ -116,6 +116,16 @@ def index(request):
             # отображение по оси x только даты, с шагом 12
             plt.xticks(df["Date"][::12])
 
+            # соеденить ma3, ma4_no_center, ma4_center в один датафрейм
+            ma3_copy = ma3.rename(columns={"Average": "MA3"})
+            ma4_no_center_copy = ma4_no_center.rename(columns={"Average": "MA4_no_center"})
+            ma4_center_copy = ma4_center.rename(columns={"Average": "MA4_center"})
+            ma3_copy = ma3_copy.set_index("Date")
+            ma4_no_center_copy = ma4_no_center_copy.set_index("Date")
+            ma4_center_copy = ma4_center_copy.set_index("Date")
+            ma3_copy = ma3_copy.join(ma4_no_center_copy)
+            ma3_copy = ma3_copy.join(ma4_center_copy)
+
             ma3_data = ma3.to_json(orient='records')
             ma4_no_center_data = ma4_no_center.to_json(orient='records')
             ma4_center_data = ma4_center.to_json(orient='records')
@@ -215,6 +225,9 @@ def index(request):
             exponential_trend = exponential_trend.to_json(orient='records')
             linear_trend = df[['Date', 'linear_trend']].copy()
             linear_trend = linear_trend.to_json(orient='records')
+            linear_trend_data = df[['Date', 'Value', 'linear_trend']].copy()
+            hyperbolic_trend_data = df[['Date', 'Value', 'hyperbolic_trend']].copy()
+            exponential_trend_data = df[['Date', 'Value', 'exponential_trend']].copy()
 
             # Отрисовываем исходные данные
             plt.figure(figsize=(12, 8))
@@ -237,6 +250,24 @@ def index(request):
             df = df.to_html(
                 classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
 
+            ma3_copy = ma3_copy.to_html(
+                classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
+
+            hyperbolic_trend_data = hyperbolic_trend_data.rename(
+                columns={'Date': 'Дата', 'Value': 'Значение', 'hyperbolic_trend': 'Гиперболический тренд'})
+            hyperbolic_trend_data = hyperbolic_trend_data.to_html(
+                classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
+
+            exponential_trend_data = exponential_trend_data.rename(
+                columns={'Date': 'Дата', 'Value': 'Значение', 'exponential_trend': 'Показательный тренд'})
+            exponential_trend_data = exponential_trend_data.to_html(
+                classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
+
+            linear_trend_data = linear_trend_data.rename(
+                columns={'Date': 'Дата', 'Value': 'Значение', 'linear_trend': 'Линейный тренд'})
+            linear_trend_data = linear_trend_data.to_html(
+                classes='table table-striped table-hover table-bordered table-sm table-responsive text-center')
+
             return render(request, 'success.html',
                           {'average_level': round(average_level, 2), 'growth': round(growth, 2),
                            'growth_srednegod': round(growth_srednegod, 2),
@@ -256,6 +287,10 @@ def index(request):
                            'linear_trend': linear_trend,
                            'test_set_data': test_set_data,
                            'future_df_data': future_df_data,
+                           'ma3': ma3_copy,
+                           'linear_trend_data': linear_trend_data,
+                           'hyperbolic_trend_data': hyperbolic_trend_data,
+                           'exponential_trend_data': exponential_trend_data,
 
                            })
 
@@ -274,3 +309,7 @@ def download_df(request):
     df.to_csv(path_or_buf=response, sep=',', float_format='%.2f', index=False, encoding='utf-8')
 
     return response
+
+
+def test(request):
+    return render(request, 'test.html')
