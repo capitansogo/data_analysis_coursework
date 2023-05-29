@@ -18,13 +18,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-trendline"></script>
-    <script src="html2pdf.bundle.js"></script>
     <script src=https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.js></script>
 </head>
 <style>
-
     .text {
-        font-size: 20px;
+        font-size: 16px;
     }
 </style>
 <body>
@@ -47,40 +45,95 @@
             <p class="text">Табличное значение F-критерия: <b>{{ F_tabl }}</b></p>
             <p class="text">t-критерий Стьюдента: <b>{{ t_stat }}</b></p>
             <p class="text">Табличное значение t-критерия: <b>{{ t_tabl }}</b></p>
-            <p class="text" style="color: red">Гипотеза о стационарности ряда : <b>{{ gipoteza }}</b></p>
+            <p class="text">Гипотеза о стационарности ряда : <b>{{ gipoteza }}</b></p>
 
         </div>
         <div class="col-8 cvet">
             <canvas id="canvasId"></canvas>
-
             <div id="block1" style="display: none;">
                 {{ ma3|safe }}
 
+                <div class="container">
+                    <p>
+                        ma3 - это список пар (месяц, скользящая средняя) для окна размером 3. Это означает, что для
+                        каждого месяц (начиная с третьего) скользящая средняя рассчитывается как среднее значение
+                        за этот месяц и два предыдущих месяца.
+                    </p>
+                    <p>
+                        ma4_no_center - это список пар (месяц, скользящая средняя) для окна размером 4 без
+                        центрирования.
+                        Это означает, что для каждого месяца (начиная с четвертого) скользящая средняя рассчитывается
+                        как
+                        среднее значение за этот месяц и три предыдущих месяца.
+                    </p>
+                    <p>
+                        ma4_center - это список пар (месяц, скользящая средняя) для окна размером 4 с центрированием.
+                        Это
+                        означает, что для каждого месяц (начиная со второго и заканчивая предпоследним) скользящая
+                        средняя рассчитывается как среднее значение за два месяца: этот месяц, предыдущий
+                        месяц, следующий месяц и месяц после следующего месяц.
+                    </p>
+                </div>
             </div>
-            <button onclick="toggleBlock('block1')" class="btn btn-outline-primary">Показать\скрыть данные</button>
-            <canvas id="canvasId2"></canvas>
-            <div id="block2" style="display: none;">
-                {{ linear_trend_data|safe }}
+            <div class="row justify-content-center">
+                <button onclick="toggleBlock('block1')" class="btn btn-outline-primary">Показать\скрыть данные
+                </button>
             </div>
-            <button onclick="toggleBlock('block2')" class="btn btn-outline-primary">Показать\скрыть данные</button>
-            <canvas id="canvasId3"></canvas>
-            <div id="block3" style="display: none;">
-                {{ exponential_trend_data|safe }}
-            </div>
-            <button onclick="toggleBlock('block3')" class="btn btn-outline-primary">Показать\скрыть данные</button>
-            <canvas id="canvasId4"></canvas>
-            <div id="block4" style="display: none;">
-                {{ hyperbolic_trend_data|safe }}
-            </div>
-            <button onclick="toggleBlock('block4')" class="btn btn-outline-primary">Показать\скрыть данные</button>
+            {% if best_model == 'linear' %}
+                <canvas id="canvasId2"></canvas>
+                <div id="block2" style="display: none;">
+                    {{ linear_trend_data|safe }}
+                </div>
+                <div class="text" style="text-align: justify">
+                    <p>Среднеквадратичная ошибка:</p>
+                    <p>Линейная: <b>{{ mse_linear }}</b></p>
+                    <p>Экспоненциальная: <b>{{ mse_exponential }}</b></p>
+                    <p>Гиперболическая: <b>{{ mse_hyperbolic }}</b></p>
+                    <p class="text">Линейная функция: <b>{{ yr_linear }}</b></p>
+                    <p class="text">Экспоненциальная функция: <b>{{ yr_exponential }}</b></p>
+                    <p class="text">Гиперболическая функция: <b>{{ yr_hyperbolic }}</b></p>
+                    <p>Среднеквадратическая ошибка (MSE) - это среднее значение квадратов ошибок. Она вычисляется как
+                        сумма квадратов разности между прогнозируемыми и фактическими значениями, деленная на количество
+                        наблюдений. Она очень часто используется при оценке моделей машинного обучения, так как большие
+                        ошибки наказываются сильнее, чем маленькие, благодаря квадратичной зависимости.</p>
+                </div>
+                <div class="row justify-content-center">
+                    <button onclick="toggleBlock('block2')" class="btn btn-outline-primary">Показать\скрыть данные
+                    </button>
+                </div>
+            {% elif best_model == 'exponential' %}
+                <canvas id="canvasId3"></canvas>
+                <div id="block3" style="display: none;">
+                    {{ exponential_trend_data|safe }}
+                </div>
+                <div class="row justify-content-center">
+                    <button onclick="toggleBlock('block3')" class="btn btn-outline-primary">Показать\скрыть данные
+                    </button>
+                </div>
+            {% elif best_model == 'hyperbolic' %}
+                <canvas id="canvasId4"></canvas>
+                <div id="block4" style="display: none;">
+                    {{ hyperbolic_trend_data|safe }}
+                </div>
+                <div class="row justify-content-center">
+                    <button onclick="toggleBlock('block4')" class="btn btn-outline-primary">Показать\скрыть данные
+                    </button>
+                </div>
+            {% endif %}
             <canvas id="canvasId5"></canvas>
         </div>
     </div>
-    <div class="row" style="overflow:auto;">
-        {{ df|safe }}
+    <div class="row justify-content-center" style="overflow:auto;">
+        <div id="block5" style="display: none; font-size: 12px">
+            {{ df|safe }}
+        </div>
+        <button onclick="toggleBlock('block5')" class="btn btn-outline-primary">Показать\скрыть все данные
+        </button>
     </div>
-    <button id="download-button" class="btn btn-primary">Скачать данные</button>
-    <button id="download-button" class="btn btn-primary" onclick="generatePDF()">Сохранить в PDF</button>
+    <div class="d-grid gap-2" style="margin-top: 20px;">
+        <button id="download-button" class="btn btn-outline-primary">Скачать данные</button>
+        <a class="btn btn-outline-primary" href="javascript:(print())">Сохранить как PDF</a>
+    </div>
 
 
     <script>
@@ -101,14 +154,8 @@
 
         // Получение контекста для рисования
         let canvas = window.document.getElementById('canvasId');
-        let canvas2 = window.document.getElementById('canvasId2');
-        let canvas3 = window.document.getElementById('canvasId3');
-        let canvas4 = window.document.getElementById('canvasId4');
         let canvas5 = window.document.getElementById('canvasId5');
         let context = canvas.getContext('2d');
-        let context2 = canvas2.getContext('2d');
-        let context3 = canvas3.getContext('2d');
-        let context4 = canvas4.getContext('2d');
         let context5 = canvas5.getContext('2d');
         // Функции
         const createLineChart_4param = (context, xData0, yData0, xData1, yData1, xData2, yData2, xData3, yData3) => {
@@ -124,7 +171,7 @@
                         borderWidth: 1,
                         borderColor: '#ff0000',
                         backgroundColor: '#ff7070',
-                        pointRadius: 0
+                        pointRadius: 1
                     },
                     {
                         label: 'Скользящая средняя (окно 3)',
@@ -132,7 +179,7 @@
                         pointStyle: 'none',
                         fill: false,
                         borderWidth: 1,
-                        pointRadius: 0,
+                        pointRadius: 1,
                         backgroundColor: '#ffc671',
                         borderColor: '#ff8000'
                     },
@@ -144,7 +191,7 @@
                         borderWidth: 1,
                         backgroundColor: '#c6ff71',
                         borderColor: '#00ff12',
-                        pointRadius: 0
+                        pointRadius: 1
                     },
                     {
                         label: 'Скользящая средняя (окно 4, с центрированием)',
@@ -154,7 +201,7 @@
                         borderWidth: 1,
                         borderColor: '#0022ff',
                         backgroundColor: '#71c6ff',
-                        pointRadius: 0
+                        pointRadius: 1
                     }]
             }
             let options = {
@@ -233,7 +280,7 @@
                         borderWidth: 1,
                         borderColor: '#ff0000',
                         backgroundColor: '#ff7070',
-                        pointRadius: 0
+                        pointRadius: 1
                     },
                     {
                         label: title1,
@@ -241,7 +288,7 @@
                         pointStyle: 'none',
                         fill: false,
                         borderWidth: 1,
-                        pointRadius: 0,
+                        pointRadius: 1,
                         backgroundColor: '#ffc671',
                         borderColor: '#ff8000'
                     },
@@ -253,7 +300,7 @@
                         borderWidth: 1,
                         backgroundColor: '#c6ff71',
                         borderColor: '#00ff12',
-                        pointRadius: 0
+                        pointRadius: 1
                     }]
             }
             let options = {
@@ -332,7 +379,7 @@
                         borderWidth: 1,
                         borderColor: '#ff0000',
                         backgroundColor: '#ff7070',
-                        pointRadius: 0
+                        pointRadius: 1
                     },
                     {
                         label: title,
@@ -340,7 +387,7 @@
                         pointStyle: 'none',
                         fill: false,
                         borderWidth: 1,
-                        pointRadius: 0,
+                        pointRadius: 1,
                         backgroundColor: '#c6ff71',
                         borderColor: '#00ff12',
                     },
@@ -450,9 +497,27 @@
 
 
         createLineChart_4param(context, xData0, yData0, xData1, yData1, xData2, yData2, xData3, yData3);
-        createLineChart_2param(context2, xData0, yData0, xLinear_trend, yLinear_trend, 'Линейный тренд');
-        createLineChart_2param(context3, xData0, yData0, xExponential_trend, yExponential_trend, 'Экспоненциальный тренд');
-        createLineChart_2param(context4, xData0, yData0, xHyperbolic_trend, yHyperbolic_trend, 'Гиперболический тренд');
+        try {
+            let canvas2 = window.document.getElementById('canvasId2');
+            let context2 = canvas2.getContext('2d');
+            createLineChart_2param(context2, xData0, yData0, xLinear_trend, yLinear_trend, 'Линейный тренд');
+        } catch (e) {
+            console.log(e);
+        }
+        try {
+            let canvas3 = window.document.getElementById('canvasId3');
+            let context3 = canvas3.getContext('2d');
+            createLineChart_2param(context3, xData0, yData0, xExponential_trend, yExponential_trend, 'Экспоненциальный тренд');
+        } catch (e) {
+            console.log(e);
+        }
+        try {
+            let canvas4 = window.document.getElementById('canvasId4');
+            let context4 = canvas4.getContext('2d');
+            createLineChart_2param(context4, xData0, yData0, xHyperbolic_trend, yHyperbolic_trend, 'Гиперболический тренд');
+        } catch (e) {
+            console.log(e);
+        }
         createLineChart_3param(context5, xData0, yData0, xTest_set_data, yTest_set_data, xFuture_df_data, yFuture_df_data, 'Тестовые данные', 'Прогноз');
 
 
